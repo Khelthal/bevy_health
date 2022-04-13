@@ -49,33 +49,42 @@ struct DisplayHealthBar {
 
 fn activate_bars(
     mut commands: Commands,
-    changed_health: Query<(Entity, &Children, &HealthBar, &Health), Changed<Health>>,
+    changed_health: Query<(Entity, Option<&Children>, &HealthBar, &Health), Changed<Health>>,
     mut displaying_health_bars: Query<&mut DisplayHealthBar>,
 ) {
     for (entity, children, health_bar, health) in changed_health.iter() {
-        for child in children.into_iter() {
-            if let Ok(mut displaying_health_bar) = displaying_health_bars.get_mut(*child) {
-                displaying_health_bar.time_left.reset();
-            } else {
-                commands.entity(entity).with_children(|parent| {
-                    parent
-                        .spawn_bundle(SpriteBundle {
-                            sprite: Sprite {
-                                color: Color::RED,
-                                custom_size: Some(Vec2::new(
-                                    (health.cur_val / health.max_val) * BAR_WIDTH,
-                                    BAR_HEIGHT,
-                                )),
-                                ..Default::default()
-                            },
-                            transform: Transform::from_translation(health_bar.offset.extend(0.)),
-                            ..Default::default()
-                        })
-                        .insert(DisplayHealthBar {
-                            time_left: Timer::new(Duration::from_millis(10000), false),
-                        });
-                });
+        let mut bar_child: Option<Entity> = None;
+
+        if let Some(children) = children {
+            for child in children.into_iter() {
+                if let Ok(_) = displaying_health_bars.get_mut(*child) {
+                    bar_child = Some(*child);
+                }
             }
+        }
+
+        if let Some(entity) = bar_child {
+            let mut displaying_health_bar = displaying_health_bars.get_mut(entity).unwrap();
+            displaying_health_bar.time_left.reset();
+        } else {
+            commands.entity(entity).with_children(|parent| {
+                parent
+                    .spawn_bundle(SpriteBundle {
+                        sprite: Sprite {
+                            color: Color::RED,
+                            custom_size: Some(Vec2::new(
+                                (health.cur_val / health.max_val) * BAR_WIDTH,
+                                BAR_HEIGHT,
+                            )),
+                            ..Default::default()
+                        },
+                        transform: Transform::from_translation(health_bar.offset.extend(0.)),
+                        ..Default::default()
+                    })
+                    .insert(DisplayHealthBar {
+                        time_left: Timer::new(Duration::from_millis(10000), false),
+                    });
+            });
         }
     }
 }
